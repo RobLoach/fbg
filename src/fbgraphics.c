@@ -1264,36 +1264,9 @@ struct _fbg_img *fbg_createImage(struct _fbg *fbg, unsigned int width, unsigned 
 }
 
 #ifndef WITHOUT_JPEG
-struct _fbg_img *fbg_loadJPEG(struct _fbg *fbg, const char *filename) {
-    unsigned char *data;
+struct _fbg_img *fbg_loadJPEGFromMemory(struct _fbg *fbg, const unsigned char *data, size_t size) {
     unsigned int width;
     unsigned int height;
-
-    size_t size;
-
-    FILE *f = fopen(filename, "rb");
-
-    if (!f) {
-        fprintf(stderr, "fbg_loadJPEG '%s' : fopen failed.\n", filename);
-
-        return NULL;
-    }
-
-    fseek(f, 0, SEEK_END);
-    size = (int)ftell(f);
-    data = (unsigned char*) malloc(size);
-
-    if (!data) {
-        fprintf(stderr, "fbg_loadJPEG '%s' : malloc failed.\n", filename);
-
-        fclose(f);
-
-        return NULL;
-    }
-
-    fseek(f, 0, SEEK_SET);
-    size = (int)fread(data, 1, size, f);
-    fclose(f);
 
     njInit();
 
@@ -1301,7 +1274,7 @@ struct _fbg_img *fbg_loadJPEG(struct _fbg *fbg, const char *filename) {
     if (nj_err != NJ_OK) {
         free(data);
 
-        fprintf(stderr, "fbg_loadJPEG '%s' : njDecode failed with error code '%i'.\n", filename, nj_err);
+        fprintf(stderr, "fbg_loadJPEGFromMemory '%s' : njDecode failed with error code '%i'.\n", filename, nj_err);
 
         return NULL;
     }
@@ -1313,7 +1286,7 @@ struct _fbg_img *fbg_loadJPEG(struct _fbg *fbg, const char *filename) {
 
     struct _fbg_img *img = fbg_createImage(fbg, width, height);
     if (!img) {
-        fprintf(stderr, "fbg_loadJPEG '%s' : Image data allocation failed\n", filename);
+        fprintf(stderr, "fbg_loadJPEGFromMemory '%s' : Image data allocation failed\n", filename);
 
         njDone();
 
@@ -1355,32 +1328,44 @@ struct _fbg_img *fbg_loadJPEG(struct _fbg *fbg, const char *filename) {
 
     return img;
 }
-#endif
 
-#ifndef WITHOUT_PNG
-struct _fbg_img *fbg_loadPNG(struct _fbg *fbg, const char *filename) {
+struct _fbg_img *fbg_loadJPEG(struct _fbg *fbg, const char *filename) {
     unsigned char *data;
-    unsigned int width;
-    unsigned int height;
-    unsigned int error;
+    size_t size;
 
-    if (fbg->components == 3) {
-        error = lodepng_decode24_file(&data, &width, &height, filename);
-    } else {
-        error = lodepng_decode32_file(&data, &width, &height, filename);
-    }
+    FILE *f = fopen(filename, "rb");
 
-    if (error) {
-        fprintf(stderr, "fbg_loadPNG %u: %s\n", error, lodepng_error_text(error));
+    if (!f) {
+        fprintf(stderr, "fbg_loadJPEG '%s' : fopen failed.\n", filename);
 
         return NULL;
     }
 
+    fseek(f, 0, SEEK_END);
+    size = (int)ftell(f);
+    data = (unsigned char*) malloc(size);
+
+    if (!data) {
+        fprintf(stderr, "fbg_loadJPEG '%s' : malloc failed.\n", filename);
+
+        fclose(f);
+
+        return NULL;
+    }
+
+    fseek(f, 0, SEEK_SET);
+    size = (int)fread(data, 1, size, f);
+    fclose(f);
+
+    return fbg_loadJPEGFromMemory(fbg, data, size);
+}
+#endif
+
+#ifndef WITHOUT_PNG
+struct _fbg_img *_fbg_loadPNGData(struct _fbg *fbg, const unsigned char *data, unsigned int width, unsigned int height) {
     struct _fbg_img *img = fbg_createImage(fbg, width, height);
     if (!img) {
-        fprintf(stderr, "fbg_loadPNG : Image '%s' data allocation failed\n", filename);
-
-        free(data);
+        fprintf(stderr, "fbg_loadPNG : Image data allocation failed\n");
 
         return NULL;
     }
@@ -1407,8 +1392,52 @@ struct _fbg_img *fbg_loadPNG(struct _fbg *fbg, const char *filename) {
 
     memcpy(img->data, data, width * height * fbg->components);
 
-    free(data);
+    return img;
+}
 
+struct _fbg_img *fbg_loadPNGFromMemory(struct _fbg *fbg, const unsigned char *data, size_t size) {
+    unsigned char* out;
+    unsigned int width;
+    unsigned int height;
+    unsigned int error;
+
+    if (fbg->components == 3) {
+        error = lodepng_decode24(&out, &width, &height, data, size);
+    } else {
+        error = lodepng_decode32(&out, &width, &height, data, size);
+    }
+
+    if (error) {
+        fprintf(stderr, "fbg_loadPNGFromMemory %u: %s\n", error, lodepng_error_text(error));
+
+        return NULL;
+    }
+
+    struct _fbg_img *img = _fbg_loadPNGData(fbg, out, width, height);
+    free(out);
+    return img;
+}
+
+struct _fbg_img *fbg_loadPNG(struct _fbg *fbg, const char *filename) {
+    unsigned char *data;
+    unsigned int width;
+    unsigned int height;
+    unsigned int error;
+
+    if (fbg->components == 3) {
+        error = lodepng_decode24_file(&data, &width, &height, filename);
+    } else {
+        error = lodepng_decode32_file(&data, &width, &height, filename);
+    }
+
+    if (error) {
+        fprintf(stderr, "fbg_loadPNG %u: %s\n", error, lodepng_error_text(error));
+
+        return NULL;
+    }
+
+    struct _fbg_img *img = _fbg_loadPNGData(fbg, data, width, height);
+    free(data);
     return img;
 }
 #endif
