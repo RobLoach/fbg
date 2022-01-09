@@ -24,6 +24,8 @@ int main(int argc, char* argv[]) {
 
     float x = 0, y = 0, velx = 3.4, vely = 3.425;
 
+    struct _fbg_img* img = fbg_loadImage(fbg, "spooky.png");
+
     signal(SIGINT, int_handler);
 
     do {
@@ -38,6 +40,7 @@ int main(int argc, char* argv[]) {
         fbg_polygon(fbg, 3, &vertices[0], 255, 0, 0);
 
         fbg_draw(fbg);
+        fbg_image(fbg, img, 50, 10);
         fbg_flip(fbg);
 
         x += velx;
@@ -59,6 +62,8 @@ int main(int argc, char* argv[]) {
             vely = -vely;
         }
     } while (keep_running && !fbg_glfwShouldClose(fbg));
+
+    fbg_freeImage(img);
 
     fbg_close(fbg);
 }

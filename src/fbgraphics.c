@@ -1277,9 +1277,7 @@ struct _fbg_img *fbg_loadJPEGFromMemory(struct _fbg *fbg, const unsigned char *d
 
     nj_result_t nj_err = njDecode(data, size);
     if (nj_err != NJ_OK) {
-        free(data);
-
-        fprintf(stderr, "fbg_loadJPEGFromMemory '%s' : njDecode failed with error code '%i'.\n", filename, nj_err);
+        fprintf(stderr, "fbg_loadJPEGFromMemory: njDecode failed with error code '%i'.\n", nj_err);
 
         return NULL;
     }
@@ -1287,21 +1285,18 @@ struct _fbg_img *fbg_loadJPEGFromMemory(struct _fbg *fbg, const unsigned char *d
     width = njGetWidth();
     height = njGetHeight();
 
-    free(data);
-
     struct _fbg_img *img = fbg_createImage(fbg, width, height);
     if (!img) {
-        fprintf(stderr, "fbg_loadJPEGFromMemory '%s' : Image data allocation failed\n", filename);
+        fprintf(stderr, "fbg_loadJPEGFromMemory: Image data allocation failed %ix%i\n", width, height);
 
         njDone();
 
         return NULL;
     }
 
-    data = njGetImage();
-
-    unsigned char *pix_pointer = data;
-    unsigned char *pix_pointer2 = data;
+    unsigned char *outData = njGetImage();
+    unsigned char *pix_pointer = outData;
+    unsigned char *pix_pointer2 = outData;
 
     if (fbg->bgr) {
         int y, x;
@@ -1318,7 +1313,7 @@ struct _fbg_img *fbg_loadJPEGFromMemory(struct _fbg *fbg, const unsigned char *d
         }
     }
 
-    pix_pointer = data;
+    pix_pointer = outData;
     pix_pointer2 = img->data;
 
     int i;
@@ -1337,7 +1332,7 @@ struct _fbg_img *fbg_loadJPEGFromMemory(struct _fbg *fbg, const unsigned char *d
 struct _fbg_img *fbg_loadJPEG(struct _fbg *fbg, const char *filename) {
     unsigned char *data;
     size_t size;
-
+    struct _fbg_img *img;
     FILE *f = fopen(filename, "rb");
 
     if (!f) {
@@ -1362,7 +1357,9 @@ struct _fbg_img *fbg_loadJPEG(struct _fbg *fbg, const char *filename) {
     size = (int)fread(data, 1, size, f);
     fclose(f);
 
-    return fbg_loadJPEGFromMemory(fbg, data, size);
+    img = fbg_loadJPEGFromMemory(fbg, data, size);
+    free(data);
+    return img;
 }
 #endif
 
@@ -1370,14 +1367,14 @@ struct _fbg_img *fbg_loadJPEG(struct _fbg *fbg, const char *filename) {
 struct _fbg_img *_fbg_loadPNGData(struct _fbg *fbg, const unsigned char *data, unsigned int width, unsigned int height) {
     struct _fbg_img *img = fbg_createImage(fbg, width, height);
     if (!img) {
-        fprintf(stderr, "fbg_loadPNG : Image data allocation failed\n");
+        fprintf(stderr, "fbg_loadPNG : Image data allocation failed %ix%i\n", width, height);
 
         return NULL;
     }
 
     if (fbg->bgr) {
-        unsigned char *pix_pointer = data;
-        unsigned char *pix_pointer2 = data;
+        unsigned char *pix_pointer = (unsigned char *)data;
+        unsigned char *pix_pointer2 = (unsigned char *)data;
 
         int y, x;
         for (y = 0; y < height; y += 1) {
@@ -1448,6 +1445,39 @@ struct _fbg_img *fbg_loadPNG(struct _fbg *fbg, const char *filename) {
 #endif
 
 #ifndef WITHOUT_STB_IMAGE
+struct _fbg_img *_fbg_loadSTBImageData(struct _fbg *fbg, unsigned char* data, int width, int height, unsigned int clearMemory) {
+    struct _fbg_img *img = (struct _fbg_img *)calloc(1, sizeof(struct _fbg_img));
+    if (!img) {
+        fprintf(stderr, "fbg_loadSTBImage: Image data allocation failed\n");
+        if (clearMemory == 1) {
+            free(data);
+        }
+
+        return NULL;
+    }
+    img->width = width;
+    img->height = height;
+    img->data = data;
+
+    return img;
+}
+
+struct _fbg_img *fbg_loadSTBImageFromMemory(struct _fbg *fbg, const unsigned char *data, size_t size) {
+    unsigned char *out;
+    int width;
+    int height;
+    int components;
+
+    out = stbi_load_from_memory(data, size, &width, &height, &components, fbg->components);
+    if (!out) {
+        fprintf(stderr, "fbg_loadSTBImageFromMemory: %s\n", stbi_failure_reason());
+
+        return NULL;
+    }
+
+    return _fbg_loadSTBImageData(fbg, out, width, height, 0);
+}
+
 struct _fbg_img *fbg_loadSTBImage(struct _fbg *fbg, const char *filename) {
     unsigned char *data;
     int width;
@@ -1461,20 +1491,31 @@ struct _fbg_img *fbg_loadSTBImage(struct _fbg *fbg, const char *filename) {
         return NULL;
     }
 
-    struct _fbg_img *img = fbg_createImage(fbg, width, height);
-    if (!img) {
-        fprintf(stderr, "fbg_loadSTBImage: Image '%s' data allocation failed\n", filename);
+    return _fbg_loadSTBImageData(fbg, (unsigned char*)data, width, height, 1);
+}
+#endif
 
-        stbi_image_free(data);
+struct _fbg_img *fbg_loadImageFromMemory(struct _fbg *fbg, const unsigned char *data, size_t size) {
+    struct _fbg_img *img = NULL;
+    
+#ifndef WITHOUT_PNG
+    img = fbg_loadPNGFromMemory(fbg, data, size);
+#endif
 
-        return NULL;
+#ifndef WITHOUT_JPEG
+    if (img == NULL) {
+        img = fbg_loadJPEGFromMemory(fbg, data, size);
     }
+#endif
 
-    img->data = data;
+#ifndef WITHOUT_STB_IMAGE
+    if (img == NULL) {
+        img = fbg_loadSTBImageFromMemory(fbg, data, size);
+    }
+#endif
 
     return img;
 }
-#endif
 
 struct _fbg_img *fbg_loadImage(struct _fbg *fbg, const char *filename) {
     struct _fbg_img *img = NULL;

@@ -589,6 +589,17 @@
     */
     extern struct _fbg_img *fbg_createImage(struct _fbg *fbg, unsigned int width, unsigned int height);
 
+#ifndef WITHOUT_PNG
+    //! load an image from memory (lodePNG library)
+    /*!
+      \param fbg pointer to a FBG context / data structure
+      \param data the data buffer for the image
+      \param size the size of the data buffer
+      \return _fbg_img data structure pointer
+      \sa fbg_freeImage(), fbg_image(), fbg_imageFlip(), fbg_createFont(), fbg_imageClip(), fbg_loadImage(), fbg_imageEx(), fbg_imageScale(), fbg_imageColorkey()
+    */
+    extern struct _fbg_img *fbg_loadPNGFromMemory(struct _fbg *fbg, const unsigned char *data, size_t size);
+
     //! load a PNG image from a file (lodePNG library)
     /*!
       \param fbg pointer to a FBG context / data structure
@@ -596,9 +607,19 @@
       \return _fbg_img data structure pointer
       \sa fbg_freeImage(), fbg_image(), fbg_imageFlip(), fbg_createFont(), fbg_imageClip(), fbg_loadJPEG(), fbg_loadImage(), fbg_imageEx(), fbg_imageScale(), fbg_imageColorkey()
     */
-#ifndef WITHOUT_PNG
     extern struct _fbg_img *fbg_loadPNG(struct _fbg *fbg, const char *filename);
 #endif
+
+#ifndef WITHOUT_JPEG
+    //! load an image from memory (NanoJPEG library)
+    /*!
+      \param fbg pointer to a FBG context / data structure
+      \param data the data buffer for the image
+      \param size the size of the data buffer
+      \return _fbg_img data structure pointer
+      \sa fbg_freeImage(), fbg_image(), fbg_imageFlip(), fbg_createFont(), fbg_imageClip(), fbg_loadImage(), fbg_imageEx(), fbg_imageScale(), fbg_imageColorkey()
+    */
+    extern struct _fbg_img *fbg_loadJPEGFromMemory(struct _fbg *fbg, const unsigned char *data, size_t size);
 
     //! load a JPEG image from a file (NanoJPEG library)
     /*!
@@ -607,11 +628,19 @@
       \return _fbg_img data structure pointer
       \sa fbg_freeImage(), fbg_image(), fbg_imageFlip(), fbg_createFont(), fbg_imageClip(), fbg_loadPNG(), fbg_loadImage(), fbg_imageEx(), fbg_imageScale(), fbg_imageColorkey()
     */
-#ifndef WITHOUT_JPEG
     extern struct _fbg_img *fbg_loadJPEG(struct _fbg *fbg, const char *filename);
 #endif
 
 #ifndef WITHOUT_STB_IMAGE
+    //! load an image from memory (STB Image library)
+    /*!
+      \param fbg pointer to a FBG context / data structure
+      \param data the data buffer for the image
+      \param size the size of the data buffer
+      \return _fbg_img data structure pointer
+      \sa fbg_freeImage(), fbg_image(), fbg_imageFlip(), fbg_createFont(), fbg_imageClip(), fbg_loadImage(), fbg_imageEx(), fbg_imageScale(), fbg_imageColorkey()
+    */
+    extern struct _fbg_img *fbg_loadSTBImageFromMemory(struct _fbg *fbg, const unsigned char *data, size_t size);
 
     //! load an image from a file (STB Image library)
     /*!
